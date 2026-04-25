@@ -183,7 +183,34 @@ async function runScheduler() {
 }
 
 // Keep-alive web server for Railway
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
+  // TEST ENDPOINT - posts immediately
+  if (req.url === '/test') {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.write(`<html><head><title>BritishPaw Test Post</title></head>
+    <body style="font-family:sans-serif;max-width:600px;margin:40px auto;padding:20px">
+    <h1>🐾 Sending test post to Facebook...</h1><p>Please wait 10 seconds...</p>`);
+    
+    try {
+      const topicData = postTopics[0];
+      const caption = await generateCaption(topicData.topic, topicData.pet, 'test post');
+      const success = await postToFacebook(caption);
+      if (success) {
+        res.end(`<p style="color:green;font-size:20px;font-weight:bold">✅ TEST POST SUCCESSFUL!</p>
+        <p>Check your BritishPaw Facebook page now — the post is live!</p>
+        <p><strong>Caption posted:</strong></p>
+        <pre style="background:#f5f5f5;padding:16px;border-radius:8px;white-space:pre-wrap">${caption}</pre>
+        <a href="/">Back to dashboard</a></body></html>`);
+      } else {
+        res.end(`<p style="color:red;font-size:20px;font-weight:bold">❌ Post failed — check your FB_PAGE_TOKEN and FB_PAGE_ID</p>
+        <a href="/">Back</a></body></html>`);
+      }
+    } catch(e) {
+      res.end(`<p style="color:red">Error: ${e.message}</p><a href="/">Back</a></body></html>`);
+    }
+    return;
+  }
+
   res.writeHead(200, { 'Content-Type': 'text/html' });
   res.end(`
     <html>
@@ -200,6 +227,8 @@ const server = http.createServer((req, res) => {
       <p>Posts published so far this session: <strong>${postIndex}</strong></p>
       <p>Current time (UTC): <strong>${new Date().toUTCString()}</strong></p>
       <hr>
+      <a href="/test" style="display:inline-block;background:#1877f2;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:16px">🧪 Send Test Post to Facebook NOW</a>
+      <hr style="margin-top:24px">
       <p style="color:#666;font-size:14px">AI content powered by Groq · Posted to britishpaw.com Facebook page</p>
     </body>
     </html>
