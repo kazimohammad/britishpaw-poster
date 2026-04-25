@@ -1,50 +1,47 @@
 const https = require('https');
 const http = require('http');
 
-const FB_PAGE_ID = process.env.FB_PAGE_ID;
-const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN;
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const FB_PAGE_ID = (process.env.FB_PAGE_ID || '').trim();
+const FB_PAGE_TOKEN = (process.env.FB_PAGE_TOKEN || '').trim();
+const GROQ_API_KEY = (process.env.GROQ_API_KEY || '').trim();
+
+console.log('BritishPaw Auto Poster starting...');
+console.log('FB_PAGE_ID:', FB_PAGE_ID ? FB_PAGE_ID : 'MISSING');
+console.log('FB_PAGE_TOKEN length:', FB_PAGE_TOKEN ? FB_PAGE_TOKEN.length : 'MISSING');
+console.log('GROQ_API_KEY:', GROQ_API_KEY ? 'Set' : 'MISSING');
 
 const postTopics = [
-  { type: 'health', pet: 'dogs', topic: 'dog enrichment activities and mental stimulation' },
-  { type: 'safety', pet: 'dogs', topic: 'night walk safety LED collar reflective gear' },
-  { type: 'nutrition', pet: 'dogs', topic: 'raw food diet for dogs UK vets advice' },
-  { type: 'grooming', pet: 'cats', topic: 'cat grooming habits prevent hairballs' },
-  { type: 'product', pet: 'dogs', topic: 'interactive puzzle feeder toys mental health' },
-  { type: 'product', pet: 'dogs and cats', topic: 'luxury pet bed sleep quality health' },
-  { type: 'health', pet: 'dogs', topic: 'dog supplements joint health gut health UK' },
-  { type: 'travel', pet: 'dogs and cats', topic: 'pet carrier travel UK staycation' },
-  { type: 'health', pet: 'dogs', topic: 'decompression sniff walk reduce dog stress' },
-  { type: 'product', pet: 'dogs and cats', topic: 'best selling UK pet accessories weekend' },
-  { type: 'enrichment', pet: 'cats', topic: 'cat mental stimulation indoor cat boredom' },
-  { type: 'walking', pet: 'dogs', topic: 'dog walking accessories UK rain mud safety' },
-  { type: 'grooming', pet: 'dogs', topic: 'dog grooming frequency breed guide UK' },
-  { type: 'behaviour', pet: 'dogs', topic: 'calming anxious dog separation anxiety UK' },
-  { type: 'nutrition', pet: 'cats', topic: 'cat food vs treats balance UK vets' },
-  { type: 'gift', pet: 'dogs and cats', topic: 'pet gifts UK free shipping britishpaw' },
-  { type: 'health', pet: 'dogs', topic: 'dog exercise daily requirements breed guide' },
-  { type: 'travel', pet: 'cats', topic: 'cat carrier personality type travel UK' },
-  { type: 'enrichment', pet: 'dogs', topic: 'scatter feeding sniff enrichment weekend challenge' },
-  { type: 'health', pet: 'dogs', topic: 'dog coat skin health UK climate winter' },
-  { type: 'cost', pet: 'dogs and cats', topic: 'pet ownership cost UK quality accessories' },
-  { type: 'training', pet: 'cats', topic: 'cat training positive reinforcement tricks' },
-  { type: 'walking', pet: 'dogs', topic: 'dog walking British weather rain gear' },
-  { type: 'health', pet: 'dogs', topic: 'dog gut health microbiome probiotic UK 2025' },
-  { type: 'product', pet: 'dogs', topic: 'orthopedic dog bed anxious senior dogs' },
-  { type: 'behaviour', pet: 'cats', topic: 'cat stress signs body language UK vets' },
-  { type: 'walking', pet: 'dogs', topic: 'dog harness breed specific fit UK trainers' },
-  { type: 'product', pet: 'dogs and cats', topic: 'pet favourite spot luxury bed upgrade' },
-  { type: 'nutrition', pet: 'dogs', topic: 'dog subscription food UK fastest growing 2025' },
-  { type: 'behaviour', pet: 'dogs', topic: 'interactive play calmer dog at night' },
-  { type: 'health', pet: 'dogs', topic: 'senior dog care joint support sleep exercise' },
-  { type: 'health', pet: 'cats', topic: 'kitten proofing UK home hazards new kitten' },
-  { type: 'health', pet: 'dogs', topic: 'dog dental teeth cleaning UK 2 minute routine' },
-  { type: 'brand', pet: 'dogs and cats', topic: 'BritishPaw UK pet store free shipping returns' },
-  { type: 'enrichment', pet: 'dogs', topic: '15 minute enrichment routine daily UK dogs' },
+  { pet: 'dogs', topic: 'dog enrichment activities and mental stimulation' },
+  { pet: 'dogs', topic: 'night walk safety LED collar reflective gear' },
+  { pet: 'dogs', topic: 'raw food diet for dogs UK vets advice' },
+  { pet: 'cats', topic: 'cat grooming habits prevent hairballs' },
+  { pet: 'dogs', topic: 'interactive puzzle feeder toys mental health' },
+  { pet: 'dogs and cats', topic: 'luxury pet bed sleep quality health' },
+  { pet: 'dogs', topic: 'dog supplements joint health gut health UK' },
+  { pet: 'dogs and cats', topic: 'pet carrier travel UK staycation' },
+  { pet: 'dogs', topic: 'decompression sniff walk reduce dog stress' },
+  { pet: 'dogs and cats', topic: 'best selling UK pet accessories weekend' },
+  { pet: 'cats', topic: 'cat mental stimulation indoor cat boredom' },
+  { pet: 'dogs', topic: 'dog walking accessories UK rain mud safety' },
+  { pet: 'dogs', topic: 'dog grooming frequency breed guide UK' },
+  { pet: 'dogs', topic: 'calming anxious dog separation anxiety UK' },
+  { pet: 'cats', topic: 'cat food vs treats balance UK vets' },
+  { pet: 'dogs and cats', topic: 'pet gifts UK free shipping britishpaw' },
+  { pet: 'dogs', topic: 'dog exercise daily requirements breed guide' },
+  { pet: 'cats', topic: 'cat carrier personality type travel UK' },
+  { pet: 'dogs', topic: 'scatter feeding sniff enrichment weekend challenge' },
+  { pet: 'dogs', topic: 'dog coat skin health UK climate winter' },
 ];
 
 let postIndex = 0;
-let isMorning = true;
+let lastLog = [];
+
+function addLog(msg) {
+  const entry = '[' + new Date().toUTCString() + '] ' + msg;
+  console.log(entry);
+  lastLog.unshift(entry);
+  if (lastLog.length > 30) lastLog.pop();
+}
 
 function makeRequest(options, body) {
   return new Promise((resolve, reject) => {
@@ -53,7 +50,7 @@ function makeRequest(options, body) {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try { resolve(JSON.parse(data)); }
-        catch (e) { resolve(data); }
+        catch (e) { resolve({ raw: data }); }
       });
     });
     req.on('error', reject);
@@ -63,23 +60,7 @@ function makeRequest(options, body) {
 }
 
 async function generateCaption(topic, pet, slot) {
-  const prompt = `Write a Facebook post for BritishPaw, a UK pet accessories store at britishpaw.com.
-
-Topic: ${topic}
-Pet focus: ${pet}
-Posting time: ${slot}
-Audience: UK pet owners aged 25-45
-
-Rules:
-- 3-4 short punchy sentences in British English
-- Include 2-3 of these keywords naturally: UK pet health, pet accessories UK, dog enrichment UK, interactive dog toys UK, cat health tips UK, night walk dog safety, luxury pet bed UK, dog supplements UK, cat mental stimulation, pet carrier travel UK
-- End with either a question to drive comments OR a call to action
-- Last line must be: Shop at britishpaw.com
-- Add 5 relevant UK hashtags at the end
-- Never use more than one exclamation mark
-- Friendly, expert, warm tone
-
-Write only the post. No explanation.`;
+  const prompt = 'Write a Facebook post for BritishPaw, a UK pet accessories store at britishpaw.com. Topic: ' + topic + '. Pet focus: ' + pet + '. Time: ' + slot + '. Audience: UK pet owners aged 25-45. Write 3-4 short punchy sentences in British English. Include relevant UK pet keywords naturally. End with a question or call to action. Last line must be: Shop at britishpaw.com. Add 5 relevant UK hashtags. Write only the post, no explanation.';
 
   const body = JSON.stringify({
     model: 'llama-3.3-70b-versatile',
@@ -94,154 +75,125 @@ Write only the post. No explanation.`;
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GROQ_API_KEY}`,
+      'Authorization': 'Bearer ' + GROQ_API_KEY,
       'Content-Length': Buffer.byteLength(body)
     }
   };
 
   try {
+    addLog('Generating caption for: ' + topic);
     const response = await makeRequest(options, body);
     if (response.choices && response.choices[0]) {
+      addLog('Caption generated OK');
       return response.choices[0].message.content.trim();
     }
-    throw new Error('No content from Groq');
+    addLog('Groq issue: ' + JSON.stringify(response).substring(0, 200));
+    return getFallbackPost(pet);
   } catch (err) {
-    console.error('Groq error:', err.message);
-    return getFallbackPost(topic, pet, slot);
+    addLog('Groq error: ' + err.message);
+    return getFallbackPost(pet);
   }
 }
 
-function getFallbackPost(topic, pet, slot) {
-  const fallbacks = [
-    `Keeping your ${pet} healthy doesn't have to be complicated. Small daily habits — the right nutrition, regular grooming, and mental stimulation — make a huge difference. UK pet owners are seeing amazing results with these simple changes. What's your top tip for a healthy pet?\n\nShop at britishpaw.com\n\n#dogHealthUK #petAccessoriesUK #UKPetStore #britishpaw #petHealthTipsUK`,
-    `The UK's pet care scene is changing fast — and BritishPaw is right at the heart of it. From safety walking gear to luxury pet beds, everything we stock is chosen for UK pets and UK lifestyles. Free shipping over £59. What does your pet need this week?\n\nShop at britishpaw.com\n\n#UKPetStoreOnline #petAccessoriesUK #dogAccessoriesUK #britishpaw #petSuppliesUK`,
-    `Did you know that mental stimulation is just as important as physical exercise for your pet? UK vets are recommending enrichment activities more than ever in 2025. Try something new with your pet this week and let us know how it goes.\n\nShop at britishpaw.com\n\n#dogEnrichmentUK #catMentalStimulation #interactiveDogToysUK #britishpaw #petHealthUK`,
-  ];
-  return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+function getFallbackPost(pet) {
+  return 'Keeping your ' + pet + ' healthy is easier than you think. Small daily habits make a huge difference for UK pet owners. What is your top tip for a healthy pet?\n\nShop at britishpaw.com\n\n#dogHealthUK #petAccessoriesUK #UKPetStore #britishpaw #petHealthTipsUK';
 }
 
 async function postToFacebook(message) {
-  const body = JSON.stringify({ message, access_token: FB_PAGE_TOKEN });
+  if (!FB_PAGE_ID || !FB_PAGE_TOKEN) {
+    addLog('ERROR: Missing FB_PAGE_ID or FB_PAGE_TOKEN');
+    return { success: false, error: 'Missing FB credentials in environment variables' };
+  }
+
+  const params = 'message=' + encodeURIComponent(message) + '&access_token=' + FB_PAGE_TOKEN;
+
   const options = {
     hostname: 'graph.facebook.com',
-    path: `/v19.0/${FB_PAGE_ID}/feed`,
+    path: '/v20.0/' + FB_PAGE_ID + '/feed',
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(body)
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Length': Buffer.byteLength(params)
     }
   };
 
   try {
-    const response = await makeRequest(options, body);
+    addLog('Posting to FB Page ID: ' + FB_PAGE_ID);
+    addLog('Token length: ' + FB_PAGE_TOKEN.length + ' chars, starts: ' + FB_PAGE_TOKEN.substring(0, 10));
+    const response = await makeRequest(options, params);
+    addLog('FB Response: ' + JSON.stringify(response));
+
     if (response.id) {
-      console.log(`✅ Posted successfully! Post ID: ${response.id}`);
-      return true;
+      addLog('SUCCESS! Post ID: ' + response.id);
+      return { success: true, id: response.id, caption: message };
     } else {
-      console.error('❌ Facebook error:', JSON.stringify(response));
-      return false;
+      const errMsg = response.error ? (response.error.message + ' (code:' + response.error.code + ')') : JSON.stringify(response);
+      addLog('FB Error: ' + errMsg);
+      return { success: false, error: errMsg };
     }
   } catch (err) {
-    console.error('❌ Post failed:', err.message);
-    return false;
+    addLog('Request error: ' + err.message);
+    return { success: false, error: err.message };
   }
 }
 
 async function runScheduler() {
   const now = new Date();
-  const ukHour = (now.getUTCHours() + 0) % 24; // GMT
+  const ukHour = now.getUTCHours();
   const ukMinute = now.getUTCMinutes();
-  const dayOfWeek = now.getUTCDay(); // 0=Sun, 6=Sat
+  const dayOfWeek = now.getUTCDay();
 
-  console.log(`⏰ Check: ${now.toUTCString()} | Day: ${dayOfWeek} | Hour: ${ukHour}:${ukMinute}`);
+  addLog('Scheduler: Day=' + dayOfWeek + ' Time=' + ukHour + ':' + String(ukMinute).padStart(2, '0') + ' UTC');
 
-  // Only post Mon-Fri (1-5)
   if (dayOfWeek === 0 || dayOfWeek === 6) {
-    console.log('📅 Weekend — no posting today');
+    addLog('Weekend - no posting');
     return;
   }
 
-  // Morning post at 9:00 AM GMT
   if (ukHour === 9 && ukMinute < 5) {
-    console.log('🌅 Morning post time!');
-    const topicData = postTopics[postIndex % postTopics.length];
-    const caption = await generateCaption(topicData.topic, topicData.pet, '9:00 AM morning');
-    console.log('📝 Caption generated:\n', caption);
+    addLog('Morning post time!');
+    const t = postTopics[postIndex % postTopics.length];
+    const caption = await generateCaption(t.topic, t.pet, '9:00 AM morning');
     await postToFacebook(caption);
     postIndex++;
   }
 
-  // Evening post at 7:00 PM GMT
   if (ukHour === 19 && ukMinute < 5) {
-    console.log('🌆 Evening post time!');
-    const topicData = postTopics[postIndex % postTopics.length];
-    const caption = await generateCaption(topicData.topic, topicData.pet, '7:00 PM evening');
-    console.log('📝 Caption generated:\n', caption);
+    addLog('Evening post time!');
+    const t = postTopics[postIndex % postTopics.length];
+    const caption = await generateCaption(t.topic, t.pet, '7:00 PM evening');
     await postToFacebook(caption);
     postIndex++;
   }
 }
 
-// Keep-alive web server for Railway
 const server = http.createServer(async (req, res) => {
-  // TEST ENDPOINT - posts immediately
+
   if (req.url === '/test') {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.write(`<html><head><title>BritishPaw Test Post</title></head>
-    <body style="font-family:sans-serif;max-width:600px;margin:40px auto;padding:20px">
-    <h1>🐾 Sending test post to Facebook...</h1><p>Please wait 10 seconds...</p>`);
-    
-    try {
-      const topicData = postTopics[0];
-      const caption = await generateCaption(topicData.topic, topicData.pet, 'test post');
-      const success = await postToFacebook(caption);
-      if (success) {
-        res.end(`<p style="color:green;font-size:20px;font-weight:bold">✅ TEST POST SUCCESSFUL!</p>
-        <p>Check your BritishPaw Facebook page now — the post is live!</p>
-        <p><strong>Caption posted:</strong></p>
-        <pre style="background:#f5f5f5;padding:16px;border-radius:8px;white-space:pre-wrap">${caption}</pre>
-        <a href="/">Back to dashboard</a></body></html>`);
-      } else {
-        res.end(`<p style="color:red;font-size:20px;font-weight:bold">❌ Post failed — check your FB_PAGE_TOKEN and FB_PAGE_ID</p>
-        <a href="/">Back</a></body></html>`);
-      }
-    } catch(e) {
-      res.end(`<p style="color:red">Error: ${e.message}</p><a href="/">Back</a></body></html>`);
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.write('<!DOCTYPE html><html><head><title>Test</title></head><body style="font-family:sans-serif;max-width:700px;margin:40px auto;padding:20px"><h1>Sending test post to Facebook...</h1><p>Please wait 15 seconds...</p>');
+
+    const t = postTopics[0];
+    const caption = await generateCaption(t.topic, t.pet, 'test');
+    const result = await postToFacebook(caption);
+
+    if (result.success) {
+      res.end('<h2 style="color:green">SUCCESS! Post is live on your Facebook page!</h2><p>Post ID: ' + result.id + '</p><div style="background:#f0fff0;padding:16px;border-radius:8px;white-space:pre-wrap">' + caption + '</div><br><a href="/">Back to dashboard</a></body></html>');
+    } else {
+      res.end('<h2 style="color:red">Post Failed</h2><p>Error: ' + result.error + '</p><h3>Debug Info:</h3><ul><li>FB_PAGE_ID: <code>' + (FB_PAGE_ID || 'MISSING') + '</code></li><li>Token length: <code>' + (FB_PAGE_TOKEN ? FB_PAGE_TOKEN.length + ' chars' : 'MISSING') + '</code></li><li>Token starts: <code>' + (FB_PAGE_TOKEN ? FB_PAGE_TOKEN.substring(0, 15) + '...' : 'MISSING') + '</code></li><li>GROQ: <code>' + (GROQ_API_KEY ? 'Set OK' : 'MISSING') + '</code></li></ul><h3>Logs:</h3><pre style="background:#1a1a1a;color:#ff6666;padding:16px;border-radius:8px;font-size:12px">' + lastLog.join('\n') + '</pre><a href="/">Back</a></body></html>');
     }
     return;
   }
 
-  res.writeHead(200, { 'Content-Type': 'text/html' });
-  res.end(`
-    <html>
-    <head><title>BritishPaw Auto Poster</title></head>
-    <body style="font-family:sans-serif;max-width:600px;margin:40px auto;padding:20px">
-      <h1>🐾 BritishPaw Auto Poster</h1>
-      <p style="color:green;font-weight:bold">✅ Running and active</p>
-      <p>Posts automatically to your BritishPaw Facebook page:</p>
-      <ul>
-        <li>🌅 <strong>9:00 AM GMT</strong> — Morning post (Mon–Fri)</li>
-        <li>🌆 <strong>7:00 PM GMT</strong> — Evening post (Mon–Fri)</li>
-      </ul>
-      <p>Total topics in rotation: <strong>${postTopics.length}</strong></p>
-      <p>Posts published so far this session: <strong>${postIndex}</strong></p>
-      <p>Current time (UTC): <strong>${new Date().toUTCString()}</strong></p>
-      <hr>
-      <a href="/test" style="display:inline-block;background:#1877f2;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:16px">🧪 Send Test Post to Facebook NOW</a>
-      <hr style="margin-top:24px">
-      <p style="color:#666;font-size:14px">AI content powered by Groq · Posted to britishpaw.com Facebook page</p>
-    </body>
-    </html>
-  `);
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end('<!DOCTYPE html><html><head><title>BritishPaw Auto Poster</title></head><body style="font-family:sans-serif;max-width:700px;margin:40px auto;padding:20px"><h1>BritishPaw Auto Poster</h1><p style="color:green;font-weight:bold;font-size:18px">Running and active</p><div style="background:#f5f5f5;padding:16px;border-radius:8px;margin:16px 0"><h3>Status</h3><p>FB Page ID: <code>' + (FB_PAGE_ID || 'MISSING') + '</code></p><p>FB Token: <code>' + (FB_PAGE_TOKEN ? 'Set OK (' + FB_PAGE_TOKEN.length + ' chars)' : 'MISSING') + '</code></p><p>Groq API: <code>' + (GROQ_API_KEY ? 'Set OK' : 'MISSING') + '</code></p><p>Posts this session: <strong>' + postIndex + '</strong></p><p>UTC time: <strong>' + new Date().toUTCString() + '</strong></p></div><div style="background:#e8f0fa;padding:16px;border-radius:8px;margin:16px 0"><h3>Schedule</h3><p>Morning: 9:00 AM GMT (Mon-Fri)</p><p>Evening: 7:00 PM GMT (Mon-Fri)</p></div><a href="/test" style="display:inline-block;background:#1877f2;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px">Send Test Post to Facebook NOW</a><h3 style="margin-top:24px">Recent Logs</h3><pre style="background:#1a1a1a;color:#00ff00;padding:16px;border-radius:8px;font-size:12px">' + (lastLog.length ? lastLog.join('\n') : 'No activity yet...') + '</pre></body></html>');
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🌐 Status page running on port ${PORT}`);
-  console.log(`🐾 BritishPaw Auto Poster started!`);
-  console.log(`📅 Will post Mon-Fri at 9:00 AM and 7:00 PM GMT`);
+  addLog('Dashboard running on port ' + PORT);
+  addLog('BritishPaw Auto Poster ready!');
 });
 
-// Check every 4 minutes
 setInterval(runScheduler, 4 * 60 * 1000);
-runScheduler(); // Run immediately on start
+runScheduler();
