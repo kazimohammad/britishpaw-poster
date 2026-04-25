@@ -1,0 +1,12 @@
+{
+  "name": "britishpaw-poster",
+  "version": "1.0.0",
+  "description": "Auto Facebook poster for BritishPaw UK pet store",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
