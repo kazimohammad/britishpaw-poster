@@ -5,11 +5,6 @@ const FB_PAGE_ID = (process.env.FB_PAGE_ID || '').trim();
 const FB_PAGE_TOKEN = (process.env.FB_PAGE_TOKEN || '').trim();
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || '').trim();
 
-console.log('BritishPaw Auto Poster starting...');
-console.log('FB_PAGE_ID:', FB_PAGE_ID ? FB_PAGE_ID : 'MISSING');
-console.log('FB_PAGE_TOKEN length:', FB_PAGE_TOKEN ? FB_PAGE_TOKEN.length : 'MISSING');
-console.log('GROQ_API_KEY:', GROQ_API_KEY ? 'Set' : 'MISSING');
-
 const postTopics = [
   { pet: 'dogs', topic: 'dog enrichment activities and mental stimulation' },
   { pet: 'dogs', topic: 'night walk safety LED collar reflective gear' },
@@ -31,6 +26,21 @@ const postTopics = [
   { pet: 'cats', topic: 'cat carrier personality type travel UK' },
   { pet: 'dogs', topic: 'scatter feeding sniff enrichment weekend challenge' },
   { pet: 'dogs', topic: 'dog coat skin health UK climate winter' },
+  { pet: 'dogs and cats', topic: 'pet ownership cost UK quality accessories' },
+  { pet: 'cats', topic: 'cat training positive reinforcement tricks' },
+  { pet: 'dogs', topic: 'dog walking British weather rain gear' },
+  { pet: 'dogs', topic: 'dog gut health microbiome probiotic UK 2025' },
+  { pet: 'dogs', topic: 'orthopedic dog bed anxious senior dogs' },
+  { pet: 'cats', topic: 'cat stress signs body language UK vets' },
+  { pet: 'dogs', topic: 'dog harness breed specific fit UK trainers' },
+  { pet: 'dogs and cats', topic: 'pet favourite spot luxury bed upgrade' },
+  { pet: 'dogs', topic: 'dog subscription food UK fastest growing 2025' },
+  { pet: 'dogs', topic: 'interactive play calmer dog at night' },
+  { pet: 'dogs', topic: 'senior dog care joint support sleep exercise' },
+  { pet: 'cats', topic: 'kitten proofing UK home hazards new kitten' },
+  { pet: 'dogs', topic: 'dog dental teeth cleaning UK 2 minute routine' },
+  { pet: 'dogs and cats', topic: 'BritishPaw UK pet store free shipping returns' },
+  { pet: 'dogs', topic: '15 minute enrichment routine daily UK dogs' },
 ];
 
 let postIndex = 0;
@@ -60,7 +70,7 @@ function makeRequest(options, body) {
 }
 
 async function generateCaption(topic, pet, slot) {
-  const prompt = 'Write a Facebook post for BritishPaw, a UK pet accessories store at britishpaw.com. Topic: ' + topic + '. Pet focus: ' + pet + '. Time: ' + slot + '. Audience: UK pet owners aged 25-45. Write 3-4 short punchy sentences in British English. Include relevant UK pet keywords naturally. End with a question or call to action. Last line must be: Shop at britishpaw.com. Add 5 relevant UK hashtags. Write only the post, no explanation.';
+  const prompt = 'Write a Facebook post for BritishPaw, a UK pet accessories store at britishpaw.com. Topic: ' + topic + '. Pet focus: ' + pet + '. Time: ' + slot + '. Audience: UK pet owners aged 25-45. Write 3-4 short punchy sentences in British English. Include relevant UK pet keywords naturally. End with a question or call to action. Last line must be: Shop at britishpaw.com. Add 5 relevant UK hashtags. Do not use pound sign or special currency symbols. Write only the post, no explanation.';
 
   const body = JSON.stringify({
     model: 'llama-3.3-70b-versatile',
@@ -85,7 +95,10 @@ async function generateCaption(topic, pet, slot) {
     const response = await makeRequest(options, body);
     if (response.choices && response.choices[0]) {
       addLog('Caption generated OK');
-      return response.choices[0].message.content.trim();
+      // Remove any special characters that cause issues
+      let caption = response.choices[0].message.content.trim();
+      caption = caption.replace(/[£€¥]/g, '');
+      return caption;
     }
     addLog('Groq issue: ' + JSON.stringify(response).substring(0, 200));
     return getFallbackPost(pet);
@@ -96,31 +109,38 @@ async function generateCaption(topic, pet, slot) {
 }
 
 function getFallbackPost(pet) {
-  return 'Keeping your ' + pet + ' healthy is easier than you think. Small daily habits make a huge difference for UK pet owners. What is your top tip for a healthy pet?\n\nShop at britishpaw.com\n\n#dogHealthUK #petAccessoriesUK #UKPetStore #britishpaw #petHealthTipsUK';
+  const posts = [
+    'Keeping your ' + pet + ' healthy is easier than you think. Small daily habits make a huge difference for UK pet owners. What is your top tip for a healthy pet?\n\nShop at britishpaw.com\n\n#dogHealthUK #petAccessoriesUK #UKPetStore #britishpaw #petHealthTipsUK',
+    'The UK pet care scene is changing fast and BritishPaw is right at the heart of it. Free shipping on orders over 59 GBP across the UK. What does your pet need this week?\n\nShop at britishpaw.com\n\n#UKPetStoreOnline #petAccessoriesUK #dogAccessoriesUK #britishpaw #petSuppliesUK',
+    'Mental stimulation is just as important as physical exercise for your ' + pet + '. UK vets are recommending enrichment activities more than ever in 2025. Try something new this week!\n\nShop at britishpaw.com\n\n#dogEnrichmentUK #catMentalStimulation #interactiveDogToysUK #britishpaw #petHealthUK',
+  ];
+  return posts[Math.floor(Math.random() * posts.length)];
 }
 
 async function postToFacebook(message) {
   if (!FB_PAGE_ID || !FB_PAGE_TOKEN) {
     addLog('ERROR: Missing FB_PAGE_ID or FB_PAGE_TOKEN');
-    return { success: false, error: 'Missing FB credentials in environment variables' };
+    return { success: false, error: 'Missing FB credentials' };
   }
 
-  const params = 'message=' + encodeURIComponent(message) + '&access_token=' + FB_PAGE_TOKEN;
+  // Use JSON body - more reliable with special characters
+  const bodyObj = { message: message, access_token: FB_PAGE_TOKEN };
+  const bodyStr = JSON.stringify(bodyObj);
 
   const options = {
     hostname: 'graph.facebook.com',
     path: '/v20.0/' + FB_PAGE_ID + '/feed',
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Content-Length': Buffer.byteLength(params)
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(bodyStr)
     }
   };
 
   try {
     addLog('Posting to FB Page ID: ' + FB_PAGE_ID);
     addLog('Token length: ' + FB_PAGE_TOKEN.length + ' chars, starts: ' + FB_PAGE_TOKEN.substring(0, 10));
-    const response = await makeRequest(options, params);
+    const response = await makeRequest(options, bodyStr);
     addLog('FB Response: ' + JSON.stringify(response));
 
     if (response.id) {
